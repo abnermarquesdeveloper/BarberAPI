@@ -11,6 +11,8 @@ Route::get('/test', function() {
     return ['test'=>true];
 });
 
+Route::get('/401', [AuthController::class, 'unauthorized'])->name('login');
+
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/logout', [AuthController::class, 'logout']);
 Route::post('/auth/refresh', [AuthController::class, 'refresh']);
