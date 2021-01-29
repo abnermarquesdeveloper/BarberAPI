@@ -18,6 +18,9 @@ Route::post('/auth/logout', [AuthController::class, 'logout']);
 Route::post('/auth/refresh', [AuthController::class, 'refresh']);
 Route::post('/user', [AuthController::class, 'create']);
 
+//rota para a criação rondomica de barbeiros para facilitar.
+//Route::get('/random', [BarberController::class, 'createRandom']);
+
 Route::get('/user', [UserController::class, 'read']);
 Route::put('/user', [UserController::class, 'update']);
 Route::get('/user/favorites', [UserController::class, 'getFavorites']);
