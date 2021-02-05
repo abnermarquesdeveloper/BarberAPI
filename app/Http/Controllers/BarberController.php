@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 use App\Models\User;
+use App\Models\UserAppointment;
+use App\Models\UserFavorite;
 use App\Models\Barber;
 use App\Models\BarberAvailability;
 use App\Models\BarberPhotos;
@@ -151,6 +153,103 @@ class BarberController extends Controller
 
         $array['data'] = $barbers;
         $array['loc'] = 'São Paulo';
+
+        return $array;
+    }
+
+    public function one($id){
+        $array = ['error' => ''];
+
+        $barber = Barber::find($id);
+        if($barber){
+            $barber['avatar'] = url('media/avatars/'.$barber['avatar']);
+            $barber['favorited'] = false;
+            $barber['photos'] = [];
+            $barber['services'] = [];
+            $barber['reviews'] = [];
+            $barber['available'] = [];
+
+            //Verificando se o barbeiro esta favoritado pelo Usuario atualmente logado
+            $cFavorite = UserFavorite::where('id_user', $this->loggedUser->id)
+                ->where('id_barber', $barber->id)
+                ->count();
+
+            if($cFavorite > 0){
+                $barber['favorited'] = true;
+            }
+
+            //Pegando as fotos do barbeiro
+            $barber['photos'] = BarberPhotos::select('id', 'url')
+                ->where('id_barber', $barber->id)
+                ->get();
+            //Arrumando a url das fotos com o caminho completo
+            foreach($barber['photos'] as $bpkey => $bpvalue ){
+                $barber['photos'][$bpkey]['url'] = url('media/uploads/'.$barber['photos'][$bpkey]['url']);
+            }
+
+            //Pegando serviços do barbeiro
+            $barber['services'] = BarberServices::select(['id', 'name', 'price'])
+                ->where('id_barber', $barber->id)
+                ->get();
+
+            //Pegando os depoimentos sobre o barbeiro
+            $barber['reviews'] = BarberReviews::select(['id', 'name', 'rate', 'body'])
+                ->where('id_barber', $barber->id)
+                ->get();
+
+            //Pegando a disponibilidade de um barbeiro
+            $availability = [];
+
+            //1- pegando a disponibilidade "crua"
+            $avails = BarberAvailability::where('id_barber', $barber->id)->get();
+            $availWeekDays = [];
+            foreach($avails as $item){
+                $availWeekDays[$item['weekday']] = explode(',', $item['hours']);
+            }
+
+            //2- pegar os agendamentos dos próximos 30 dias
+            $appointments = [];
+            $appQuery = UserAppointment::where('id_barber', $barber->id)
+                ->whereBetween('ap_datetime', [
+                    date('Y-m-d').'00:00:00',
+                    date('Y-m-d', strtotime('+30 days')).'23:59:59'
+                ])
+                ->get();
+            foreach($appQuery as $appItem){
+                $appointments[] = $appItem['ap_datetime'];
+            }
+
+            //3- gerar disponibilidade real
+            for($i = 0; $i < 30; $i++){
+                $timeItem = strtotime('+'.$i. ' days');
+                $weekday = date('w', $timeItem);
+
+                if(in_array($weekday, array_keys($availWeekDays))){
+                    $hours = [];
+
+                    $dayItem = date('Y-m-d', $timeItem);
+                    foreach($availWeekDays[$weekday] as $hourItem){
+                        $dayFormated = $dayItem.' '.$hourItem.':00';
+                        if(!in_array($dayFormated, $appointments)){
+                            $hours[] = $hourItem;
+                        }
+                    }
+                    if(count($hours) > 0){
+                        $availability[] = [
+                            'date' => $dayItem,
+                            'hours' => $hours
+                        ];
+                    }
+                }
+            }
+
+            $barber['available'] = $availability;
+
+
+            $array['data'] = $barber;
+        }else{
+            $array['error'] = 'Barbeiro não existe!';
+        }
 
         return $array;
     }
