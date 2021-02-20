@@ -323,4 +323,24 @@ class BarberController extends Controller
 
         return $array;
     }
+
+    public function search(Request $request){
+        $array = ['error'=>'', 'list'=>[]];
+
+        $query = $request->input('query');
+
+        if($query){
+            $barbers = Barber::select()
+            ->where('name', 'LIKE', '%'.$query.'%')
+            ->get();
+
+            foreach($barbers as $bkey => $barber){
+                $barbers[$bkey]['avatar'] = url('media/avatars/'.$barbers[$bkey]['avatar']);
+            }
+
+            $array['list'] = $barbers;
+        }
+
+        return $array;
+    }
 }
