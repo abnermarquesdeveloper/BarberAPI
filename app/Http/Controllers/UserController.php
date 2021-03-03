@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\File; //Usado para apagar o avatar anterior na atualização do mesmo.
+use Intervention\Image\Facades\Image;
 
 use App\Models\Barber;
 use App\Models\BarberServices;
@@ -144,6 +146,41 @@ class UserController extends Controller
         }
 
         $user->save();
+
+        return $array;
+    }
+
+    public function updateAvatar(Request $request){
+        $array = ['error'=>''];
+
+        $ruleImage = [
+            'avatar' => 'required|image|mimes:png,jpg,jpeg'
+        ];
+
+        $validator = Validator::make($request->all(), $ruleImage);
+
+        if($validator->fails()){
+            $array['error'] = $validator->messages();
+            return $array;
+        }
+
+        $avatar = $request->file('avatar');
+
+        $dest = public_path('/media/avatars');
+        $avatarName = md5(time().rand(0,999)).'.jpg';
+
+        $img = Image::make($avatar->getRealPath());
+        $img->fit(300,300)->save($dest.'/'.$avatarName);
+
+        $user = User::find($this->loggedUser->id);
+        $avatarBefore = $user->avatar; //Pega o avatar antes de atualizar para o novo.
+        $user->avatar = $avatarName;
+        $user->save();
+
+        //Apaga o avatar anterior
+        if($avatarName != $avatarBefore){
+            File::delete(public_path('/media/avatars/'.$avatarBefore));
+        }
 
         return $array;
     }
